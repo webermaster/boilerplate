@@ -14,13 +14,5 @@
     {
         "ParameterKey": "BastionKeyPair",
         "ParameterValue": "BastionKeyPair"
-    },
-    {
-        "ParameterKey": "BastionInstanceType",
-        "ParameterValue": "t3.micro"
-    },
-    {
-        "ParameterKey": "LogGroupRetention",
-        "ParameterValue": "30"
     }
 ]

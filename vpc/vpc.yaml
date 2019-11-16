@@ -39,8 +39,9 @@ Parameters:
     - default
     - dedicated
     Description: VPC Instance Tenancy
-    LogGroupRetention:
-      Type: String
+  LogGroupRetention:
+      Type: Number
+      Default: 30
       Description: Number of days to keep logs
       AllowedValues:
         - 1
@@ -84,6 +85,7 @@ Parameters:
   BastionInstanceType:
     Type: String
     Default: t3.micro
+    Description: Bastion Instance Size
     AllowedValues:
       - m5.12xlarge
       - m5.16xlarge
@@ -123,7 +125,6 @@ Parameters:
       - t3a.nano
       - t3a.small
       - t3a.xlarge
-    Description: Bastion Instance Size
 Resources:
   VPC:
     Type: AWS::EC2::VPC
@@ -140,24 +141,55 @@ Resources:
         - Key: Name
           Value:
             Ref: VPCName
+  FlowLogRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: 'vpc-flow-logs.amazonaws.com'
+          Action: 'sts:AssumeRole'
+  FlowLogPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      Roles:
+      - Ref: FlowLogRole
+      PolicyName:
+        !Join
+        - '-'
+        - - Ref: VPC
+          - 'flowlogs-policy'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - 'logs:CreateLogStream'
+          - 'logs:PutLogEvents'
+          - 'logs:DescribeLogGroups'
+          - 'logs:DescribeLogStreams'
+          Resource: !GetAtt VPCFlowLogGroup.Arn
   VPCFlowLogGroup:
-    Type: AWS::Logs:LogGroup
+    Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName:
         !Join
         - "-"
         - - Ref: VPC
-        - - "flow-log-group"
+          - "flow-log-group"
       RetentionInDays:
         Ref: LogGroupRetention
   VPCFlowLog:
     Type: AWS::EC2::FlowLog
     Properties:
+      DeliverLogsPermissionArn: !GetAtt FlowLogRole.Arn
       LogGroupName:
         !Join
         - "-"
         - - Ref: VPC
-        - - "flow-log-group"
+          - "flow-log-group"
       ResourceId:
         Ref: VPC
       ResourceType: VPC
