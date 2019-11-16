@@ -1,0 +1,18 @@
+[
+    {
+        "ParameterKey": "VPCName",
+        "ParameterValue": "MyVPC"
+    },
+    {
+        "ParameterKey": "CIDR",
+        "ParameterValue": "10.12.0.0/16"
+    },
+    {
+        "ParameterKey": "BastionAMI",
+        "ParameterValue": "ami-0a85857bfc5345c38"
+    },
+    {
+        "ParameterKey": "BastionKeyPair",
+        "ParameterValue": "BastionKeyPair"
+    }
+]
