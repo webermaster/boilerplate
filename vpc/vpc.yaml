@@ -18,13 +18,13 @@ Metadata:
       - Label:
           default: Bastion Settings
         Parameters:
+        - BastionAMI
         - BastionKeyPair
         - BastionInstanceType
 Parameters:
   VPCName:
     Type: String
     Description:  Name of the VPC.  Will be used in tagging VPC components
-    MinLength: 8
     MaxLength: 250
   CIDR:
     Type: String
@@ -52,6 +52,10 @@ Parameters:
     AllowedValues:
     - 'true'
     - 'false'
+  BastionAMI:
+    Type: String
+    Description: AMI ID for Bastions
+    AllowedPattern: ^ami-[A-Za-z0-9]*$
   BastionKeyPair:
     Type: AWS::EC2::KeyPair::KeyName
     Description: EC2 KeyPair For Bastions
@@ -324,7 +328,8 @@ Resources:
         - 0
         - !GetAZs
             Ref: AWS::Region
-      ImageId: ami-0a85857bfc5345c38
+      ImageId:
+        Ref: BastionAMI
       InstanceType:
         Ref: BastionInstanceType
       KeyName:
@@ -522,7 +527,8 @@ Resources:
         - 1
         - !GetAZs
             Ref: AWS::Region
-      ImageId: ami-0a85857bfc5345c38
+      ImageId:
+        Ref: BastionAMI
       InstanceType:
         Ref: BastionInstanceType
       KeyName:
@@ -980,8 +986,6 @@ Outputs:
     Value:
       Ref: VPC
     Description: VPC ID
-    Export:
-      Name: VPC01
   VPCCidr:
     Value: !GetAtt VPC.CidrBlock
     Description: VPC CIDR Block
