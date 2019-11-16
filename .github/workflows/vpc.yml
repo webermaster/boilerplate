@@ -1,0 +1,13 @@
+name: VPCValidate
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: AWS cli install action
+      uses: chrislennon/action-aws-cli@v1
+    - name: Validate template
+      run: aws cloudformation validate-template --template-body=file:///./vpc/vpc.yaml
