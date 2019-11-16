@@ -1056,11 +1056,34 @@ Resources:
             - - Ref: VPC
               - 'bastion-nlb'
       Type: network
+  BastionTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name:
+        !Join
+        - '-'
+        - - Ref: VPC
+          - 'bastion-tg'
+      Port: 22
+      Protocol: TCP
+      VpcId:
+        Ref: VPC
+  BastionNLBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn:
+            Ref: BastionTargetGroup
+      LoadBalancerArn:
+        Ref: BastionNLB
+      Port: 22
+      Protocol: TCP
   BastionAutoscalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
-      LoadBalancerNames:
-      - !GetAtt BastionNLB.LoadBalancerName
+      TargetGroupARNs:
+      - Ref: BastionTargetGroup
       LaunchConfigurationName:
         Ref: BastionLaunchConfiguration
       VPCZoneIdentifier:
@@ -1078,12 +1101,6 @@ Resources:
             - - Ref: VPC
               - 'bastion'
           PropagateAtLaunch: true
-    CreationPolicy:
-      ResourceSignal:
-        Count: 1
-        Timeout: PT30M
-      AutoScalingCreationPolicy:
-        MinSuccessfulInstancesPercent: 100
     UpdatePolicy:
       AutoScalingReplacingUpdate:
         WillReplace: true
