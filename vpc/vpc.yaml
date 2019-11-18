@@ -64,14 +64,14 @@ Parameters:
   DNSSupport:
     Type: String
     Description: Enable VPC DNS Support
-    Default: 'false'
+    Default: 'true'
     AllowedValues:
     - 'true'
     - 'false'
   DNSHostnames:
     Type: String
     Description: Enable VPC DNS Hostnames
-    Default: 'false'
+    Default: 'true'
     AllowedValues:
     - 'true'
     - 'false'
@@ -430,34 +430,6 @@ Resources:
       Protocol: 6
       RuleAction: allow
       RuleNumber: 130
-  BastionA:
-    Type: AWS::EC2::Instance
-    Properties:
-      AvailabilityZone:
-        !Select
-        - 0
-        - !GetAZs
-            Ref: AWS::Region
-      ImageId:
-        Ref: BastionAMI
-      InstanceType:
-        Ref: BastionInstanceType
-      KeyName:
-        Ref: BastionKeyPair
-      Monitoring: 'true'
-      SecurityGroupIds:
-        - Ref: BastionSG
-      SubnetId:
-        Ref: PublicSubnetA
-      Tags:
-      - Key: Name
-        Value:
-          !Join
-          - '_'
-          - - Ref: VPCName
-            - PublicSubnetABastion
-      Tenancy:
-        Ref: InstanceTenancy
   PublicSubnetB:
     Type: AWS::EC2::Subnet
     Properties:
@@ -629,34 +601,6 @@ Resources:
       Protocol: 6
       RuleAction: allow
       RuleNumber: 130
-  BastionB:
-    Type: AWS::EC2::Instance
-    Properties:
-      AvailabilityZone:
-        !Select
-        - 1
-        - !GetAZs
-            Ref: AWS::Region
-      ImageId:
-        Ref: BastionAMI
-      InstanceType:
-        Ref: BastionInstanceType
-      KeyName:
-        Ref: BastionKeyPair
-      Monitoring: 'true'
-      SecurityGroupIds:
-        - Ref: BastionSG
-      SubnetId:
-        Ref: PublicSubnetB
-      Tags:
-      - Key: Name
-        Value:
-          !Join
-          - '_'
-          - - Ref: VPCName
-            - PublicSubnetABastion
-      Tenancy:
-        Ref: InstanceTenancy
   PrivateSubnetA:
     Type: AWS::EC2::Subnet
     Properties:
@@ -1091,6 +1035,92 @@ Resources:
           - '_'
           - - Ref: VPCName
             - IsolatedSubnetB
+  BastionNLB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      IpAddressType: ipv4
+      Name:
+        !Join
+        - '-'
+        - - Ref: VPC
+          - 'bastion'
+      Scheme: internet-facing
+      Subnets:
+      - Ref: PublicSubnetA
+      - Ref: PublicSubnetB
+      Tags:
+        - Key: Name
+          Value:
+            !Join
+            - '-'
+            - - Ref: VPC
+              - 'bastion-nlb'
+      Type: network
+  BastionTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name:
+        !Join
+        - '-'
+        - - Ref: VPC
+          - 'bastion-tg'
+      Port: 22
+      Protocol: TCP
+      VpcId:
+        Ref: VPC
+  BastionNLBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn:
+            Ref: BastionTargetGroup
+      LoadBalancerArn:
+        Ref: BastionNLB
+      Port: 22
+      Protocol: TCP
+  BastionAutoscalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      TargetGroupARNs:
+      - Ref: BastionTargetGroup
+      LaunchConfigurationName:
+        Ref: BastionLaunchConfiguration
+      VPCZoneIdentifier:
+        - Ref: PublicSubnetA
+        - Ref: PublicSubnetB
+      MinSize: 1
+      MaxSize: 1
+      Cooldown: '300'
+      DesiredCapacity: 1
+      Tags:
+        - Key: Name
+          Value:
+            !Join
+            - '-'
+            - - Ref: VPC
+              - 'bastion'
+          PropagateAtLaunch: true
+    UpdatePolicy:
+      AutoScalingReplacingUpdate:
+        WillReplace: true
+  BastionLaunchConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      LaunchConfigurationName:
+        !Join
+        - '-'
+        - - Ref: VPC
+          - 'bastion-lc'
+      AssociatePublicIpAddress: true
+      ImageId:
+        Ref: BastionAMI
+      InstanceType:
+        Ref: BastionInstanceType
+      KeyName:
+        Ref: BastionKeyPair
+      SecurityGroups:
+        - Ref: BastionSG
 Outputs:
   VPCId:
     Value:
@@ -1123,12 +1153,9 @@ Outputs:
     Value:
       Ref: IsolatedSubnetB
     Description: Isolated Subnet in AZ B
-  BastionAIP:
-    Value: !GetAtt BastionA.PublicIp
-    Description: Public IP for Bastion A
-  BastionBIP:
-    Value: !GetAtt BastionB.PublicIp
-    Description: Public IP for Bastion B
+  BastionDNS:
+    Value: !GetAtt BastionNLB.DNSName
+    Description: Public DNS for Bastion
   KeyPairName:
     Value:
       Ref: BastionKeyPair
