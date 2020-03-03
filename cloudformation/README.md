@@ -1,2 +1,2 @@
-# cfn
-my cfn script boilerplate
+# CloudFormation
+My AWS CloudFormation Boilerplate
