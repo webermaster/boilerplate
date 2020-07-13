@@ -492,9 +492,7 @@ Resources:
         To: 65535
       Protocol: 6
       RuleAction: allow
-      RuleNumber: 13
-
-  # above here is good0
+      RuleNumber: 130
   PublicSubnetA:
     Type: AWS::EC2::Subnet
     Properties:
