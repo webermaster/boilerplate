@@ -231,83 +231,6 @@ Resources:
         Ref: IGW
       RouteTableId:
         Ref: PublicSubnetRouteTable
-  BastionSG:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      VpcId:
-        Ref: VPC
-      GroupDescription:
-          !Join
-          - ' '
-          - - 'Bastion Security for VPC:'
-            - Ref: VPCName
-      GroupName:
-          !Join
-          - '_'
-          - - Ref: VPCName
-            - BastionSG
-      SecurityGroupIngress:
-      - CidrIp: 0.0.0.0/0
-        Description: Allow traffic over ssh
-        IpProtocol: tcp
-        FromPort: 22
-        ToPort: 22
-      Tags:
-      - Key: Name
-        Value:
-          !Join
-          - '_'
-          - - Ref: VPCName
-            - BastionSG
-  PublicSubnetA:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId:
-        Ref: VPC
-      AvailabilityZone:
-        !Select
-        - 0
-        - !GetAZs
-            Ref: AWS::Region
-      CidrBlock:
-        !Select
-        - 0
-        - !Cidr
-          - !GetAtt VPC.CidrBlock
-          - 6
-          - 8
-      MapPublicIpOnLaunch: 'true'
-      Tags:
-      - Key: Name
-        Value:
-          !Join
-          - '_'
-          - - Ref: VPCName
-            - PublicSubnetA
-  PublicSubnetARouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId:
-        Ref: PublicSubnetRouteTable
-      SubnetId:
-        Ref: PublicSubnetA
-  EIPA:
-    Type: AWS::EC2::EIP
-    Properties:
-      Domain: vpc
-  NatGatewayA:
-    Type: AWS::EC2::NatGateway
-    Properties:
-      AllocationId: !GetAtt EIPA.AllocationId
-      SubnetId:
-        Ref: PublicSubnetA
-      Tags:
-      - Key: Name
-        Value:
-          !Join
-          - '_'
-          - - Ref: VPCName
-            - NatGatewayA
   PublicSubnetNacl:
     Type: AWS::EC2::NetworkAcl
     Properties:
@@ -430,6 +353,38 @@ Resources:
       Protocol: 6
       RuleAction: allow
       RuleNumber: 130
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPC
+      AvailabilityZone:
+        !Select
+        - 0
+        - !GetAZs
+            Ref: AWS::Region
+      CidrBlock:
+        !Select
+        - 0
+        - !Cidr
+          - !GetAtt VPC.CidrBlock
+          - 6
+          - 8
+      MapPublicIpOnLaunch: 'true'
+      Tags:
+      - Key: Name
+        Value:
+          !Join
+          - '_'
+          - - Ref: VPCName
+            - PublicSubnetA
+  PublicSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: PublicSubnetRouteTable
+      SubnetId:
+        Ref: PublicSubnetA
   PublicSubnetB:
     Type: AWS::EC2::Subnet
     Properties:
@@ -462,10 +417,19 @@ Resources:
         Ref: PublicSubnetRouteTable
       SubnetId:
         Ref: PublicSubnetB
-  EIPB:
-    Type: AWS::EC2::EIP
+  NatGatewayA:
+    Type: AWS::EC2::NatGateway
     Properties:
-      Domain: vpc
+      AllocationId: !GetAtt EIPA.AllocationId
+      SubnetId:
+        Ref: PublicSubnetA
+      Tags:
+      - Key: Name
+        Value:
+          !Join
+          - '_'
+          - - Ref: VPCName
+            - NatGatewayA
   NatGatewayB:
     Type: AWS::EC2::NatGateway
     Properties:
@@ -859,6 +823,42 @@ Resources:
         Ref: BastionKeyPair
       SecurityGroups:
         - Ref: BastionSG
+  BastionSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId:
+        Ref: VPC
+      GroupDescription:
+          !Join
+          - ' '
+          - - 'Bastion Security for VPC:'
+            - Ref: VPCName
+      GroupName:
+          !Join
+          - '_'
+          - - Ref: VPCName
+            - BastionSG
+      SecurityGroupIngress:
+      - CidrIp: 0.0.0.0/0
+        Description: Allow traffic over ssh
+        IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+      Tags:
+      - Key: Name
+        Value:
+          !Join
+          - '_'
+          - - Ref: VPCName
+            - BastionSG
+  EIPA:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+  EIPB:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
 Outputs:
   VPCId:
     Value:
