@@ -346,7 +346,7 @@ Resources:
           - 8
       Egress: 'true'
       NetworkAclId:
-        Ref: PublicSubnetANacl
+        Ref: PublicSubnetNacl
       PortRange:
         From: 22
         To: 22
@@ -391,7 +391,7 @@ Resources:
       NetworkAclId:
         Ref: PublicSubnetNacl
       SubnetId:
-      Ref: PublicSubnetA
+        Ref: PublicSubnetA
   PublicSubnetB:
     Type: AWS::EC2::Subnet
     Properties:
@@ -430,7 +430,7 @@ Resources:
       NetworkAclId:
         Ref: PublicSubnetNacl
       SubnetId:
-      Ref: PublicSubnetB
+        Ref: PublicSubnetB
   NatGatewayA:
     Type: AWS::EC2::NatGateway
     Properties:
@@ -507,7 +507,7 @@ Resources:
       NetworkAclId:
         Ref: PrivateSubnetNacl
       SubnetId:
-      Ref: PrivateSubnetA
+        Ref: PrivateSubnetA
   NatGatewayARoute:
     Type: AWS::EC2::Route
     Properties:
@@ -706,7 +706,7 @@ Resources:
       NetworkAclId:
         Ref: PublicSubnetNacl
       SubnetId:
-      Ref: PrivateSubnetB
+        Ref: PrivateSubnetB
   NatGatewayBRoute:
     Type: AWS::EC2::Route
     Properties:
