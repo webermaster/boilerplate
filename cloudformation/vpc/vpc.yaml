@@ -386,12 +386,12 @@ Resources:
       SubnetId:
         Ref: PublicSubnetA
   PublicSubnetANetworkAclAssociation:
-  Type: AWS::EC2::SubnetNetworkAclAssociation
-  Properties: 
-    NetworkAclId:
-      Ref: PublicSubnetNacl
-    SubnetId: 
-    Ref: PublicSubnetA
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId:
+        Ref: PublicSubnetNacl
+      SubnetId:
+      Ref: PublicSubnetA
   PublicSubnetB:
     Type: AWS::EC2::Subnet
     Properties:
@@ -425,12 +425,12 @@ Resources:
       SubnetId:
         Ref: PublicSubnetB
   PublicSubnetBNetworkAclAssociation:
-  Type: AWS::EC2::SubnetNetworkAclAssociation
-  Properties: 
-    NetworkAclId:
-      Ref: PublicSubnetNacl
-    SubnetId: 
-    Ref: PublicSubnetB
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId:
+        Ref: PublicSubnetNacl
+      SubnetId:
+      Ref: PublicSubnetB
   NatGatewayA:
     Type: AWS::EC2::NatGateway
     Properties:
@@ -502,12 +502,12 @@ Resources:
       SubnetId:
         Ref: PrivateSubnetA
   PrivateSubnetANetworkAclAssociation:
-  Type: AWS::EC2::SubnetNetworkAclAssociation
-  Properties: 
-    NetworkAclId:
-      Ref: PrivateSubnetNacl
-    SubnetId: 
-    Ref: PrivateSubnetA
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId:
+        Ref: PrivateSubnetNacl
+      SubnetId:
+      Ref: PrivateSubnetA
   NatGatewayARoute:
     Type: AWS::EC2::Route
     Properties:
@@ -701,12 +701,12 @@ Resources:
       SubnetId:
         Ref: PrivateSubnetB
   PrivateSubnetBNetworkAclAssociation:
-  Type: AWS::EC2::SubnetNetworkAclAssociation
-  Properties: 
-    NetworkAclId:
-      Ref: PublicSubnetNacl
-    SubnetId: 
-    Ref: PrivateSubnetB
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId:
+        Ref: PublicSubnetNacl
+      SubnetId:
+      Ref: PrivateSubnetB
   NatGatewayBRoute:
     Type: AWS::EC2::Route
     Properties:
