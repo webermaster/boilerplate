@@ -385,6 +385,13 @@ Resources:
         Ref: PublicSubnetRouteTable
       SubnetId:
         Ref: PublicSubnetA
+  PublicSubnetANetworkAclAssociation:
+  Type: AWS::EC2::SubnetNetworkAclAssociation
+  Properties: 
+    NetworkAclId:
+      Ref: PublicSubnetNacl
+    SubnetId: 
+    Ref: PublicSubnetA
   PublicSubnetB:
     Type: AWS::EC2::Subnet
     Properties:
@@ -417,6 +424,13 @@ Resources:
         Ref: PublicSubnetRouteTable
       SubnetId:
         Ref: PublicSubnetB
+  PublicSubnetBNetworkAclAssociation:
+  Type: AWS::EC2::SubnetNetworkAclAssociation
+  Properties: 
+    NetworkAclId:
+      Ref: PublicSubnetNacl
+    SubnetId: 
+    Ref: PublicSubnetB
   NatGatewayA:
     Type: AWS::EC2::NatGateway
     Properties:
@@ -487,6 +501,13 @@ Resources:
         Ref: PrivateSubnetARouteTable
       SubnetId:
         Ref: PrivateSubnetA
+  PrivateSubnetANetworkAclAssociation:
+  Type: AWS::EC2::SubnetNetworkAclAssociation
+  Properties: 
+    NetworkAclId:
+      Ref: PrivateSubnetNacl
+    SubnetId: 
+    Ref: PrivateSubnetA
   NatGatewayARoute:
     Type: AWS::EC2::Route
     Properties:
@@ -679,6 +700,13 @@ Resources:
         Ref: PrivateSubnetBRouteTable
       SubnetId:
         Ref: PrivateSubnetB
+  PrivateSubnetBNetworkAclAssociation:
+  Type: AWS::EC2::SubnetNetworkAclAssociation
+  Properties: 
+    NetworkAclId:
+      Ref: PublicSubnetNacl
+    SubnetId: 
+    Ref: PrivateSubnetB
   NatGatewayBRoute:
     Type: AWS::EC2::Route
     Properties:
