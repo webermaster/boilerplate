@@ -1,7 +1,7 @@
 [
     {
         "ParameterKey": "VPCName",
-        "ParameterValue": "MyVPC"
+        "ParameterValue": "WHRIoTVpc"
     },
     {
         "ParameterKey": "CIDR",
@@ -9,7 +9,7 @@
     },
     {
         "ParameterKey": "BastionAMI",
-        "ParameterValue": "ami-0a85857bfc5345c38"
+        "ParameterValue": "ami-0b1e2eeb33ce3d66f"
     },
     {
         "ParameterKey": "BastionKeyPair",
