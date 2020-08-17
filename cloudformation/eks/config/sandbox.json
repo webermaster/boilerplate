@@ -1,0 +1,14 @@
+{
+  "Parameters": {
+    "DesiredSize": "3",
+    "DiskSize": "20",
+    "ForceUpdateEnabled": "true",
+    "MaxSize": "5",
+    "MinSize": "2",
+    "SSHKey": "BastionKeyPair",
+    "Subnets": "subnet-0c21890be070a2576,subnet-0bf4d6035750958ed",
+    "VPC": "vpc-0e29cefd2dbbf5e64",
+    "Version": "1.17",
+    "WorkerNodeSize": "t3a.medium"
+  }
+}

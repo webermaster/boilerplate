@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Creates a bucket in which all CodePipelines store assets in the account
+Parameters:
+  AutomationArn:
+    Type: String
+    Description: Arn for cross-account automation services arn
+    AllowedPattern: "^arn:aws(-[\\w]+)*:iam::[0-9]{12}:role/.*$"
+Resources:
+  Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault:
+            SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+  Role:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+              - "codepipeline.amazonaws.com"
+              - "cloudformation.amazonaws.com"
+              - "servicecatalog.amazonaws.com"
+              - "codebuild.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+          - Effect: "Allow"
+            Principal:
+              AWS:
+              - !Ref AutomationArn
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/AdministratorAccess
+Outputs:
+  Bucket:
+    Description: Name of CodePipeline root s3 bucket
+    Value: !Ref Bucket
+    Export:
+      Name: CodePipelineRootBucket
+  Role:
+    Description: Infrastructure Deplioy role
+    Value: !GetAtt Role.Arn
+    Export:
+      Name: AutomationRoleArn

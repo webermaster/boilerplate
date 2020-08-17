@@ -1,0 +1,74 @@
+AWSTemplateFormatVersion: 2010-09-09
+Resources:
+  Macro:
+    Type: AWS::CloudFormation::Macro
+    Properties:
+      Name: !Sub '${AWS::StackName}'
+      Description: Transform the original template performing a for loop that adds the requested number of Users resources.
+      FunctionName: !Ref MacroProcessor
+  MacroProcessor:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: MacroProcessor
+      Runtime: "python3.7"
+      Description: IAM Users Macro processor function
+      Handler: "index.lambda_handler"
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: !Sub |
+          def lambda_handler(event, context):
+
+            fragment = event["fragment"]
+
+            subnets = event["templateParameterValues"]["Subnets"]
+
+            resources = fragment["Resources"]
+            for subnet in subnets:
+              mount_target = {
+                "Type": "AWS::EFS::MountTarget",
+                "Properties": {
+                  "FileSystemId": { "Ref" : "EFS" },
+                  "SecurityGroups": [{ "Ref" : "EFSSecurityGroup"}],
+                  "SubnetId": subnet
+                }
+              }
+
+              resources["EFSMountTarget"+subnet.replace("-", "")] = mount_target
+
+            print (fragment["Resources"])
+            return {
+              "requestId": event["requestId"],
+              "status": "success",
+              "fragment": fragment
+            }
+      Timeout: 300
+      MemorySize: 512
+      Role: !GetAtt LambdaExecutionRole.Arn
+  LambdaExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+            Action:
+            - sts:AssumeRole
+        Path: /
+  LambdaPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub "${AWS::StackName}-policy"
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Action: "cloudformation:*"
+          Resource: "*"
+        - Effect: Allow
+          Action: "logs:*"
+          Resource: "*"
+      Roles:
+      - !Ref LambdaExecutionRole

@@ -1,0 +1,137 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Amazon EKS - Cluster
+Parameters:
+  Version:
+    Type: String
+    Description: Version of Kubernetes to deploy
+    Default: "1.17"
+    AllowedValues:
+    - "1.17"
+  VPC:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC in which to deploy the cluster
+  Subnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Subnets list for EKS cluster deployment
+  WorkerNodeSize:
+    Type: String
+    Description: Size of worker nodes
+    Default: m5.4xlarge
+    AllowedValues:
+    - t3a.medium
+    - m5.large
+    - m5.xlarge
+    - m5.2xlarge
+    - m5.4xlarge
+    - m5.8xlarge
+    - m5.12xlarge
+    - m5.16xlarge
+    - r5.large
+    - r5.xlarge
+    - r5.2xlarge
+    - r5.4xlarge
+    - r5.8xlarge
+    - r5.12xlarge
+    - r5.16xlarge
+  DiskSize:
+    Type: Number
+    Description: Size of node disk in GB
+  ForceUpdateEnabled:
+    Type: String
+    Description: Whether to force node upgrades
+    AllowedValues:
+    - true
+    - false
+  MinSize:
+    Type: Number
+    Description: Minimum size of worker nodepool
+  MaxSize:
+    Type: Number
+    Description:  Maximum size of worker nodepool
+  DesiredSize:
+    Type: Number
+    Description: Desired seize of worker nodepool
+Resources:
+  EKSClusterRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - eks.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+  EKSClusterSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Cluster communication with worker nodes
+      VpcId:
+        Ref: VPC
+      GroupName: !Sub "${AWS::StackName}-cp-security-group"
+  EKSCluster:
+    Type: 'AWS::EKS::Cluster'
+    Properties:
+      Name: !Sub "${AWS::StackName}-control-plane"
+      Version:
+        Ref: Version
+      RoleArn: !GetAtt EKSClusterRole.Arn
+      ResourcesVpcConfig:
+        SecurityGroupIds:
+        - Ref: EKSClusterSecurityGroup
+        SubnetIds:
+          Ref: Subnets
+  EKSNodeGroupRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+      - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+      - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+      - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+  EKSNodegroup:
+    Type: AWS::EKS::Nodegroup
+    Properties:
+      AmiType: AL2_x86_64
+      ClusterName:
+        Ref: EKSCluster
+      DiskSize:
+        Ref: DiskSize
+      ForceUpdateEnabled:
+        Ref: ForceUpdateEnabled
+      InstanceTypes:
+        - Ref: WorkerNodeSize
+      NodegroupName: !Sub "${AWS::StackName}-nodegroup"
+      NodeRole: !GetAtt EKSNodeGroupRole.Arn
+      RemoteAccess:
+        Ec2SshKey:
+          Ref: SSHKey
+      ScalingConfig:
+        MinSize:
+          Ref: MinSize
+        DesiredSize:
+          Ref: DesiredSize
+        MaxSize:
+          Ref: MaxSize
+      Subnets: !Ref Subnets
+Outputs:
+  ClusterName:
+    Value: !Ref EKSCluster
+  NodeRole:
+    Value:
+      !GetAtt
+      - EKSNodeGroupRole
+      - Arn

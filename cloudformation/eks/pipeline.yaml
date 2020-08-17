@@ -1,0 +1,191 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Deployment pipeline for EKS Cluster
+Parameters:
+  ClusterNamePrefix:
+    Type: String
+    Description: Name prefix  of Cluster to be created
+    MinLength: 1
+  TemplateZip:
+    Type: String
+    Description: Name of AWS CFN Template zip file in s3
+    MinLength: 1
+  Template:
+    Type: String
+    Description: Path of AWS CFN Template
+    MinLength: 1
+  Parameters:
+    Type: String
+    Description: Path of AWS CFN Template parameter file
+    MinLength: 1
+  AdminRoleArn:
+    Type: String
+    Description: Role arn identifying Cluster administrators
+    AllowedPattern: "^arn:aws(-[\\w]+)*:iam::[0-9]{12}:role/.*$"
+Resources:
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub "${AWS::StackName}"
+      RestartExecutionOnUpdate: true
+      RoleArn: !ImportValue AutomationRoleArn
+      ArtifactStore:
+        Location: !ImportValue CodePipelineRootBucket
+        Type: S3
+      Stages:
+      - Name: GetTemplate
+        Actions:
+        - Name: GetTemplate
+          ActionTypeId:
+            Category: Source
+            Owner: AWS
+            Provider: S3
+            Version: '1'
+          InputArtifacts: []
+          Configuration:
+            S3Bucket: !ImportValue CodePipelineRootBucket
+            S3ObjectKey:
+              Fn::Sub:
+              - "${AWS::StackName}/${Template}"
+              - Template: !Ref TemplateZip
+            PollForSourceChanges: 'true'
+          OutputArtifacts:
+          - Name: SourceArtifact
+      - Name: Deploy
+        Actions:
+        - Name: Deploy
+          ActionTypeId:
+            Category: Deploy
+            Owner: AWS
+            Provider: CloudFormation
+            Version: '1'
+          InputArtifacts:
+          - Name: SourceArtifact
+          Configuration:
+            ActionMode: CREATE_UPDATE
+            StackName: !Ref ClusterNamePrefix
+            Capabilities: CAPABILITY_NAMED_IAM,CAPABILITY_AUTO_EXPAND
+            RoleArn: !ImportValue AutomationRoleArn
+            TemplatePath:
+              Fn::Sub:
+              - "SourceArtifact::${Template}"
+              - Template: !Ref Template
+            TemplateConfiguration:
+              Fn::Sub:
+              - "SourceArtifact::${Parameters}"
+              - Parameters: !Ref Parameters
+            OutputFileName: Output.json
+          OutputArtifacts:
+          - Name: CFNOutput
+          Namespace: CF
+      - Name: Configure
+        Actions:
+        - Name: Configure
+          ActionTypeId:
+            Category: Build
+            Owner: AWS
+            Provider: CodeBuild
+            Version: '1'
+          InputArtifacts:
+          - Name: SourceArtifact
+          Configuration:
+            ProjectName: !Ref CodeBuildProject
+            EnvironmentVariables:
+              Fn::Sub:
+              - >
+                [{
+                   "name": "CLUSTER_NAME",
+                   "value": "#{CF.ClusterName}"
+                  },
+                  {
+                   "name": "ADMIN_ROLE",
+                   "value": "${AdminRoleArn}"
+                   },
+                   {
+                    "name": "NODE_ROLE",
+                    "value": "#{CF.NodeRole}"
+                   },
+                   {
+                    "name": "REGION",
+                    "value": "${AWS::Region}"
+                   },
+                   {
+                    "name": "AUTOMATION_ROLE",
+                    "value": "${AutomationRole}"
+                   }]
+              - AdminRoleArn: !Ref AdminRoleArn
+                AutomationRole: !ImportValue AutomationRoleArn
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub "${AWS::StackName}-configurer"
+      ServiceRole: !ImportValue AutomationRoleArn
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: amazon/aws-cli
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Source:
+        Type: NO_SOURCE
+        BuildSpec: |
+          version: 0.2
+          env:
+            shell: bash
+          phases:
+            install:
+              commands:
+                - echo Entered the install phase...
+                - curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
+                - chmod +x ./kubectl
+                - mv ./kubectl /usr/local/bin/kubectl
+                - yum install -y git
+            build:
+              commands:
+                - echo Entered the build phase...
+                - aws eks update-kubeconfig --name "$CLUSTER_NAME"
+                - |
+                  cat << EOF > ./aws-auth-cm.yaml
+                  apiVersion: v1
+                  kind: ConfigMap
+                  metadata:
+                    name: aws-auth
+                    namespace: kube-system
+                  data:
+                    mapRoles: |
+                      - rolearn: $NODE_ROLE
+                        username: system:node:{{EC2PrivateDNSName}}
+                        groups:
+                          - system:bootstrappers
+                          - system:nodes
+                      - rolearn: $ADMIN_ROLE
+                        username: admin
+                        groups:
+                          - system:masters
+                      - rolearn: $AUTOMATION_ROLE
+                        username: automation
+                        groups:
+                          - system:masters
+                  EOF
+                - cat ./aws-auth-cm.yaml
+                - kubectl apply -f ./aws-auth-cm.yaml
+                - kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v0.34.1/deploy/static/provider/aws/deploy.yaml
+                - kubectl apply -f https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/cloudwatch-namespace.yaml
+                - kubectl apply -f https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/cwagent/cwagent-serviceaccount.yaml
+                - curl https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/cwagent/cwagent-configmap.yaml | sed "s/{{cluster_name}}/${CLUSTER_NAME}/" | kubectl apply -f -
+                - kubectl apply -f https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/cwagent/cwagent-daemonset.yaml
+                - |
+                  cat << EOF > ./cluster-info.yaml
+                  kind: ConfigMap
+                  apiVersion: v1
+                  metadata:
+                    name: cluster-info
+                    namespace: amazon-cloudwatch
+                  data:
+                    cluster.name: $CLUSTER_NAME
+                    logs.region: $REGION
+                  EOF
+                - kubectl apply -f ./cluster-info.yaml
+                - kubectl apply -f https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/fluentd/fluentd.yaml
+                - |
+                  aws eks --region $REGION update-cluster-config --name $CLUSTER_NAME \
+                  --logging '{"clusterLogging":[{"types":["api","audit","authenticator","controllerManager","scheduler"],"enabled":true}]}' || echo "done"
