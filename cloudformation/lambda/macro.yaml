@@ -17,23 +17,11 @@ Resources:
       Code:
         ZipFile: !Sub |
           def lambda_handler(event, context):
-
             fragment = event["fragment"]
-
             subnets = event["templateParameterValues"]["Subnets"]
-
             resources = fragment["Resources"]
             for subnet in subnets:
-              mount_target = {
-                "Type": "AWS::EFS::MountTarget",
-                "Properties": {
-                  "FileSystemId": { "Ref" : "EFS" },
-                  "SecurityGroups": [{ "Ref" : "EFSSecurityGroup"}],
-                  "SubnetId": subnet
-                }
-              }
-
-              resources["EFSMountTarget"+subnet.replace("-", "")] = mount_target
+              pass
 
             print (fragment["Resources"])
             return {
@@ -42,7 +30,7 @@ Resources:
               "fragment": fragment
             }
       Timeout: 300
-      MemorySize: 512
+      MemorySize: 128
       Role: !GetAtt LambdaExecutionRole.Arn
   LambdaExecutionRole:
       Type: AWS::IAM::Role
