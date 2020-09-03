@@ -168,7 +168,10 @@ Resources:
                   EOF
                 - cat ./aws-auth-cm.yaml
                 - kubectl apply -f ./aws-auth-cm.yaml
-                - kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v0.34.1/deploy/static/provider/aws/deploy.yaml
+                - curl -o ingress-nginx.yaml "https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v0.34.1/deploy/static/provider/aws/deploy.yaml"
+                - |
+                  sed -i 's^\(\s*\)service.beta.kubernetes.io/aws-load-balancer-type: nlb^\0\n\1service.beta.kubernetes.io/aws-load-balancer-internal: "true"^g' ingress-nginx.yaml
+                - kubectl apply -f ingress-nginx.yaml
                 - kubectl apply -f https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/cloudwatch-namespace.yaml
                 - kubectl apply -f https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/cwagent/cwagent-serviceaccount.yaml
                 - curl https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/cwagent/cwagent-configmap.yaml | sed "s/{{cluster_name}}/${CLUSTER_NAME}/" | kubectl apply -f -
