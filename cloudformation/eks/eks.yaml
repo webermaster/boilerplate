@@ -102,6 +102,61 @@ Resources:
       - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
       - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
       - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+  EKSAutoScalingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "iot-cf-${AWS::StackName}-autoscaling-role"
+      AssumeRolePolicyDocument:
+        !Sub
+        - |
+          { 
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Principal": {
+                  "Federated": [
+                    "arn:aws:iam::${AWS::AccountId}:oidc-provider/${OIDCIssuer}" 
+                  ]
+                },
+                "Action": [
+                  "sts:AssumeRoleWithWebIdentity"
+                ],
+                "Condition": {
+                  "StringEquals": {
+                    "${OIDCIssuer}:sub": "system:serviceaccount:kube-system:cluster-autoscaler" 
+                  }
+                }
+              }
+            ]
+          }
+        - OIDCIssuer:
+            !Select
+              - 1
+              - !Split
+                - "//"
+                - !GetAtt EKSCluster.OpenIdConnectIssuerUrl
+      PermissionsBoundary: !Sub "arn:aws:iam::${AWS::AccountId}:policy/iot-permissions-boundry"
+  EKSNodeGroupAutoScalingPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: "Allow"
+          Action:
+          -  "autoscaling:DescribeAutoScalingGroups"
+          -  "autoscaling:DescribeAutoScalingInstances"
+          -  "autoscaling:DescribeLaunchConfigurations"
+          -  "autoscaling:DescribeTags"
+          -  "autoscaling:SetDesiredCapacity"
+          -  "autoscaling:TerminateInstanceInAutoScalingGroup"
+          -  "ec2:DescribeLaunchTemplateVersions"
+          Resource: "*"
+      PolicyName: !Sub "${AWS::StackName}-autoscaling-policy"
+      Roles:
+      - !Ref EKSNodeGroupRole
+      - !Ref EKSAutoScalingRole
   EKSNodegroup:
     Type: AWS::EKS::Nodegroup
     Properties:
