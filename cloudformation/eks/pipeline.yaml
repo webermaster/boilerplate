@@ -170,8 +170,31 @@ Resources:
                 - kubectl apply -f ./aws-auth-cm.yaml
                 - curl -o ingress-nginx.yaml "https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v0.34.1/deploy/static/provider/aws/deploy.yaml"
                 - |
+                  sed -i 's^service\.beta\.kubernetes\.io/aws-load-balancer-type: elb^service.beta.kubernetes.io/aws-load-balancer-type: nlb^g' ingress-nginx.yaml
                   sed -i 's^\(\s*\)service.beta.kubernetes.io/aws-load-balancer-type: nlb^\0\n\1service.beta.kubernetes.io/aws-load-balancer-internal: "true"^g' ingress-nginx.yaml
+                  sed -i "s^arn:aws:acm:us-west-2:XXXXXXXX:certificate/XXXXXX-XXXXXXX-XXXXXXX-XXXXXXXX^$CERT_ARN^g" ingress-nginx.yaml
+                  sed -i "s^XXX.XXX.XXX/XX^$VPC_CIDR^g" ingress-nginx.yaml
+                - |
+                  cat << EOF > ./anti_aff_snippet.txt
+                  affinity:
+                    podAntiAffinity:
+                      preferredDuringSchedulingIgnoredDuringExecution:
+                      - weight: 100
+                        podAffinityTerm: 
+                          labelSelector:
+                            matchExpressions:
+                            - key: app.kubernetes.io/instance
+                              operator: In
+                              values:
+                              - ingress-nginx
+                          topologyKey: "topology.kubernetes.io/zone"
+                  EOF
+                - ANTI_AFFINITY=$(cat ./anti_aff_snippet.txt | awk '{printf "%s\\n\\1",$0}')
+                - |
+                  sed -i "s^\(\s*\)dnsPolicy: ClusterFirst^\0\n\1$ANTI_AFFINITY^g" ingress-nginx.yaml
                 - kubectl apply -f ingress-nginx.yaml
+                - NGINX_SIZE=$(kubectl get nodes -o yaml | grep topology.kubernetes.io/zone | uniq | wc -l)
+                - kubectl scale deploy -n ingress-nginx ingress-nginx-controller --replicas ${NGINX_SIZE} 
                 - kubectl apply -f https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/cloudwatch-namespace.yaml
                 - kubectl apply -f https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/cwagent/cwagent-serviceaccount.yaml
                 - curl https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/cwagent/cwagent-configmap.yaml | sed "s/{{cluster_name}}/${CLUSTER_NAME}/" | kubectl apply -f -
@@ -188,6 +211,12 @@ Resources:
                     logs.region: $REGION
                   EOF
                 - kubectl apply -f ./cluster-info.yaml
+                - curl -o cluster-autoscaler.yaml "https://raw.githubusercontent.com/kubernetes/autoscaler/master/cluster-autoscaler/cloudprovider/aws/examples/cluster-autoscaler-autodiscover.yaml"
+                - |
+                  sed -i 's^\(\s*\)- --expander=least-waste^\0\n\1- --balance-similar-node-groups^g' cluster-autoscaler.yaml
+                  sed -i 's^\(\s*\)- --expander=least-waste^\0\n\1- --skip-nodes-with-system-pods=false^g' cluster-autoscaler.yaml
+                  sed -i "s^<YOUR CLUSTER NAME>^$CLUSTER_NAME^g" cluster-autoscaler.yaml
+                - kubectl apply -f cluster-autoscaler.yaml
                 - kubectl apply -f https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/fluentd/fluentd.yaml
                 - |
                   aws eks --region $REGION update-cluster-config --name $CLUSTER_NAME \
